@@ -1,8 +1,8 @@
 "use client";
-
+import {signIn, signOut, useSession} from "next-auth/react";
 import { useEffect, useState } from "react";
 import axios from "axios";
-
+import { Spinner } from "@/components/ui/spinner"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -18,6 +18,54 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import Image from "next/image";
 
+export default function Page() {
+     const { data: session, status } = useSession();
+     
+     if (status === "loading") {
+        return (
+            <div className='flex flex-col h-screen justify-center items-center gap-4'>
+              <Spinner/>
+                <p>Loading...</p>
+                
+            </div>
+        );
+     }
+     
+     return (
+        <div className='w-full min-h-screen'>
+            {status === "unauthenticated" && (
+                <div className='flex flex-col h-screen justify-center items-center gap-4'>
+                    <button
+                        className='cursor-pointer bg-lime-400 px-4 py-2 rounded-md text-black hover:bg-blue-600 transition-colors'
+                        onClick={() => signIn("google")}
+                    >
+                        Login with Google
+                    </button>
+                </div>
+            )}
+
+            {status === "authenticated" && (
+                <div className='flex flex-col items-start gap-6 p-4'>
+                    <div className='w-full flex justify-between items-center'>
+                        <div>
+                            <h1 className='text-2xl font-bold'>Welcome!</h1>
+                            <p className='text-gray-600'>Logged In as: {session?.user?.name}</p>
+                            <p className='text-sm text-gray-500'>{session?.user?.email}</p>
+                        </div>
+                        <button
+                            className='cursor-pointer bg-red-500 px-6 py-2 rounded-md text-white hover:bg-red-600 transition-colors'
+                            onClick={() => signOut()}
+                        >
+                            Logout
+                        </button>
+                    </div>
+                    <UsersPage />
+                </div>
+            )}
+        </div>
+    )
+  }
+
 interface User {
   id: string;
   username: string;
@@ -27,12 +75,13 @@ interface User {
   profilepic: string;
 }
 
-export default function UsersPage() {
+function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [form, setForm] = useState<any>({});
   const [editingId, setEditingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -46,6 +95,7 @@ export default function UsersPage() {
   }, []);
 
   const submit = async () => {
+    setSubmitting(true);
     try {
       const url = editingId ? `/api/users/${editingId}` : "/api/users";
       const method = editingId ? "PUT" : "POST";
@@ -67,6 +117,8 @@ export default function UsersPage() {
       setDialogOpen(false);
     } catch (error: any) {
       console.error("Error submitting form:", error.response?.data || error.message);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -97,7 +149,7 @@ export default function UsersPage() {
     }
   };
 
-  if (loading) return <p className="p-4 min-h-screen flex items-center justify-center">Loading...</p>;
+  if (loading) return <p className=""><Spinner/>Loading...</p>;
 
   return (
     <div className="max-w-6xl mx-auto p-4">
@@ -201,9 +253,9 @@ export default function UsersPage() {
             {users.map((u) => (
               <tr key={u.id}>
                 <td className="border p-2">
-                  <Image
-                    width={40}
+                  <img
                     height={40}
+                    width={40}
                     src={u.profilepic}
                     alt=""
                     className="w-10 h-10 rounded-full object-cover"
@@ -284,7 +336,7 @@ export default function UsersPage() {
                         <DialogClose asChild>
                           <Button variant="outline">Cancel</Button>
                         </DialogClose>
-                        <Button onClick={submit}>Save Changes</Button>
+                        <Button onClick={submit} disabled={submitting}>{submitting && <Spinner/>}Save Changes</Button>
                       </DialogFooter>
                     </DialogContent>
                   </Dialog>
